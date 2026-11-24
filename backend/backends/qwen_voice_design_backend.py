@@ -58,7 +58,7 @@ class QwenVoiceDesignBackend:
         self._model_load_lock = asyncio.Lock()
 
     def _get_device(self) -> str:
-        return get_torch_device(allow_xpu=True, allow_directml=True)
+        return get_torch_device(allow_xpu=True, allow_directml=True, allow_mps=True)
 
     def is_loaded(self) -> bool:
         return self.model is not None
