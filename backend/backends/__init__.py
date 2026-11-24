@@ -696,9 +696,32 @@ async def track_model_download(config: ModelConfig, load, *, force: bool = False
         mark_download_verified(repo)
 
 
+def _unload_other_tts_engines(engine: str) -> None:
+    """With VOICEBOX_SINGLE_TTS_MODEL=1, keep only one TTS engine in memory.
+
+    On a 16GB Apple Silicon Mac two 1.7B Qwen models (e.g. CustomVoice and
+    VoiceDesign) loaded side by side push free system memory under 10%, so a
+    switch of engine unloads whatever other engine is still resident.
+    """
+    import os
+
+    if os.environ.get("VOICEBOX_SINGLE_TTS_MODEL", "").strip() != "1":
+        return
+    for name, other in list(_tts_backends.items()):
+        if name == engine:
+            continue
+        try:
+            if other.is_loaded():
+                logger.info("Unloading %s before loading %s (VOICEBOX_SINGLE_TTS_MODEL=1)", name, engine)
+                other.unload_model()
+        except Exception as e:  # never block a generation on a failed unload
+            logger.warning("Could not unload %s: %s", name, e)
+
+
 async def load_engine_model(engine: str, model_size: str = "default") -> None:
     """Load a model for the given engine, handling engines with multiple model sizes."""
     backend = get_tts_backend_for_engine(engine)
+    _unload_other_tts_engines(engine)
     if engine in ("qwen", "qwen_custom_voice"):
         load = partial(backend.load_model_async, model_size)
     elif engine == "tada":

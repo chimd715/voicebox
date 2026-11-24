@@ -136,6 +136,11 @@ class QwenVoiceDesignBackend:
 
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
+            elif torch.backends.mps.is_available():
+                import gc
+
+                gc.collect()
+                torch.mps.empty_cache()
 
             logger.info("Qwen VoiceDesign unloaded")
 
